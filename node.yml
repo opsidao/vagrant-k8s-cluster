@@ -1,0 +1,120 @@
+---
+
+- name: Install Python2
+  hosts: all
+  become: true
+  become_user: root
+  gather_facts: no
+
+  tasks:
+  - name: 'install python2'
+    raw: sudo apt-get -y install python
+
+
+- name: Install common dependencies
+  hosts: all
+  become: true
+  become_user: root
+
+  vars:
+    apt_dependencies:
+    - apt-transport-https
+    - cowsay
+    - curl
+    - docker.io
+    - kubeadm
+    - kubectl
+    - kubelet
+
+  tasks:
+  - name: Add apt key for the kubernetes repository
+    apt_key:
+      url: https://packages.cloud.google.com/apt/doc/apt-key.gpg
+      id: BA07F4FB
+  - name: Add kubernetes repository to sources.list.d
+    apt_repository:
+      repo: deb http://apt.kubernetes.io/ kubernetes-xenial main
+      update_cache: true
+
+  - name: Install dependencies
+    apt:
+      name: "{{ apt_dependencies }}"
+
+
+- name: Setup the master node
+  hosts: master
+  become: true
+  become_user: root
+
+  tasks:
+  - name: Initialize kubernetes
+    command: kubeadm init --pod-network-cidr=192.168.0.0/16 --apiserver-advertise-address 192.168.2.100
+    args:
+      creates: /etc/kubernetes/admin.conf
+
+  - name: Create directory for kubeconfig
+    file:
+      path: /home/vagrant/.kube
+      state: directory
+      owner: vagrant
+      group: vagrant
+
+  - name: Copy admin config to vagrant user's kubeconfig
+    copy:
+      src: /etc/kubernetes/admin.conf
+      dest: /home/vagrant/.kube/config
+      remote_src: true
+      owner: vagrant
+      group: vagrant
+
+  - name: Untaint master
+    become_user: vagrant
+    command: kubectl taint nodes --all node-role.kubernetes.io/master-
+    ignore_errors: true
+
+  - name: Create Calico ClusterRole
+    become_user: vagrant
+    command: kubectl apply -f https://docs.projectcalico.org/v3.1/getting-started/kubernetes/installation/hosted/rbac-kdd.yaml
+
+  - name: Run calico in the cluster
+    become_user: vagrant
+    command: kubectl apply -f https://docs.projectcalico.org/v3.1/getting-started/kubernetes/installation/hosted/kubernetes-datastore/calico-networking/1.7/calico.yaml
+
+- name: Setup calico node
+  hosts: all
+  become: true
+  become_user: root
+
+  tasks:
+  - name: Download calico binary
+    get_url:
+      url: https://github.com/projectcalico/cni-plugin/releases/download/v2.0.6/calico
+      dest: /opt/cni/bin/calico
+      mode: 0755
+  - name: Download calico-ipam binary
+    get_url:
+      url: https://github.com/projectcalico/cni-plugin/releases/download/v2.0.6/calico-ipam
+      dest: /opt/cni/bin/calico-ipam
+      mode: 0755
+  - name: Download calicoctl binary
+    get_url:
+      url: https://github.com/projectcalico/calicoctl/releases/download/v2.0.6/calicoctl
+      dest: /opt/cni/bin/calicoctl
+      mode: 0755
+  - name: Starting calico node
+    shell: ETCD_ENDPOINTS=http://10.0.2.15:2379 /opt/cni/bin/calicoctl node run --node-image=quay.io/calico/node:v3.0.8
+    ignore_errors: true
+
+- name: Next step notification
+  hosts: minion
+
+  vars:
+    message: |
+      There's one more thing left to do! You need to make your minion join the cluster.
+      Run this command (Please, remove the extra backslashes added by ansible to the double quotes):
+         vagrant ssh minion -c "sudo `vagrant ssh master -c 'sudo kubeadm token create --print-join-command'`"
+
+  tasks:
+  - name: Post install message
+    debug:
+      msg: "{{ message.split('\n') }}"
