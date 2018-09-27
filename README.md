@@ -32,6 +32,9 @@ As soon as you execute that command, after the provisioning has been succesfull,
 ```shell
 host> $ vagrant ssh master
 master> $ kubectl get nodes --watch
+NAME      STATUS     ROLES     AGE       VERSION
+master    Ready      master    5m        v1.11.3
+minion    NotReady   <none>    26s       v1.11.3
 ```
 
 You should already see your two nodes listed, but it can take a little bit for the minion to become ready... just give it a minute (in my case is around 40 seconds)
