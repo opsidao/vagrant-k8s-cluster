@@ -31,6 +31,7 @@
     apt_key:
       url: https://packages.cloud.google.com/apt/doc/apt-key.gpg
       id: BA07F4FB
+
   - name: Add kubernetes repository to sources.list.d
     apt_repository:
       repo: deb http://apt.kubernetes.io/ kubernetes-xenial main
@@ -40,6 +41,28 @@
     apt:
       name: "{{ apt_dependencies }}"
 
+- name: Configure bash completion for kubectl
+  hosts: master
+
+  tasks:
+  - name: Create directory for kubeconfig
+    file:
+      path: /home/vagrant/.kube
+      state: directory
+
+  - name: Generate kubectl completion file for bash
+    command: kubectl completion bash
+    register: bash_completion
+
+  - name: Save completion file to disk
+    copy:
+      content: "{{ bash_completion.stdout }}"
+      dest: /home/vagrant/.kube/completion.bash.inc
+
+  - name: Source kubectl completion in .bashrc
+    lineinfile:
+      path: /home/vagrant/.bashrc
+      line: source '/home/vagrant/.kube/completion.bash.inc'
 
 - name: Setup the master node
   hosts: master
@@ -51,13 +74,6 @@
     command: kubeadm init --pod-network-cidr=192.168.0.0/16 --apiserver-advertise-address 192.168.2.100
     args:
       creates: /etc/kubernetes/admin.conf
-
-  - name: Create directory for kubeconfig
-    file:
-      path: /home/vagrant/.kube
-      state: directory
-      owner: vagrant
-      group: vagrant
 
   - name: Copy admin config to vagrant user's kubeconfig
     copy:
