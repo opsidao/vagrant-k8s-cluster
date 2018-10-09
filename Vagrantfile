@@ -8,6 +8,7 @@ Vagrant.configure('2') do |config|
 
   config.vm.provision('ansible') do |ansible|
     ansible.playbook = 'node.yml'
+    ansible.compatibility_mode = '2.0'
   end
 
   config.vm.provider 'virtualbox' do |v|
