@@ -131,6 +131,20 @@
     become_user: vagrant
     command: kubectl apply -f https://docs.projectcalico.org/v3.1/getting-started/kubernetes/installation/hosted/kubernetes-datastore/calico-networking/1.7/calico.yaml
 
+- name: Setup MetalLB
+  hosts: master
+
+  tasks:
+  - name: Apply MetalLB manifest
+    command: kubectl apply -f https://raw.githubusercontent.com/google/metallb/v0.7.3/manifests/metallb.yaml
+
+  - name: Copy MetalLB configmap to VM
+    copy:
+      src: manifests/metallb-configmap.yml
+      dest: /home/vagrant/metallb-configmap.yml
+
+  - name: Apply MetalLB configmap
+    command: kubectl apply -f /home/vagrant/metallb-configmap.yml
 
 - name: Setup calico node
   hosts: all
