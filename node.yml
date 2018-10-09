@@ -115,6 +115,14 @@
 
   - name: Restart the kubelet
     command: systemctl restart kubelet
+
+- name: Setup calico services
+  hosts: master
+
+  tasks:
+  - name: Install an ETCD server for calico
+    command: kubectl apply -f https://docs.projectcalico.org/v3.2/getting-started/kubernetes/installation/hosted/etcd.yaml
+
   - name: Create Calico ClusterRole
     become_user: vagrant
     command: kubectl apply -f https://docs.projectcalico.org/v3.1/getting-started/kubernetes/installation/hosted/rbac-kdd.yaml
