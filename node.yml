@@ -64,7 +64,7 @@
       path: /home/vagrant/.bashrc
       line: source '/home/vagrant/.kube/completion.bash.inc'
 
-- name: Setup the master node
+- name: Initialize kubernetes
   hosts: master
   become: true
   become_user: root
@@ -88,6 +88,12 @@
     command: kubectl taint nodes --all node-role.kubernetes.io/master-
     ignore_errors: true
 
+  - name: Install kompose
+    get_url:
+      url: https://github.com/kubernetes/kompose/releases/download/v1.16.0/kompose-linux-amd64
+      dest: /usr/local/bin/kompose
+      mode: 0755
+
   - name: Create Calico ClusterRole
     become_user: vagrant
     command: kubectl apply -f https://docs.projectcalico.org/v3.1/getting-started/kubernetes/installation/hosted/rbac-kdd.yaml
@@ -96,11 +102,6 @@
     become_user: vagrant
     command: kubectl apply -f https://docs.projectcalico.org/v3.1/getting-started/kubernetes/installation/hosted/kubernetes-datastore/calico-networking/1.7/calico.yaml
 
-  - name: Install kompose
-    get_url:
-      url: https://github.com/kubernetes/kompose/releases/download/v1.16.0/kompose-linux-amd64
-      dest: /usr/local/bin/kompose
-      mode: 0755
 
 - name: Setup calico node
   hosts: all
