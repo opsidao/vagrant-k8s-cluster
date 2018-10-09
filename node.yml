@@ -94,6 +94,27 @@
       dest: /usr/local/bin/kompose
       mode: 0755
 
+- name: Set the kubelet node ip
+  hosts: all
+  become: true
+  become_user: root
+
+  tasks:
+  - name: Get the ip address shared with the virtualbox host
+    shell: "ifconfig | grep 192.168.2 | cut -d: -f2 | awk '{print $1}'"
+    register: ip_address
+
+  - name: Set the right ip address for the kubelet
+    lineinfile:
+      path: /etc/default/kubelet
+      regexp: '^KUBELET_EXTRA_ARGS='
+      line: 'KUBELET_EXTRA_ARGS=--node-ip={{ ip_address.stdout }}'
+
+  - name: Reload daemon configuration
+    command: systemctl daemon-reload
+
+  - name: Restart the kubelet
+    command: systemctl restart kubelet
   - name: Create Calico ClusterRole
     become_user: vagrant
     command: kubectl apply -f https://docs.projectcalico.org/v3.1/getting-started/kubernetes/installation/hosted/rbac-kdd.yaml
